@@ -1,0 +1,23 @@
+{
+  "name": "ec2-state-switcher",
+  "version": "1.0.0",
+  "description": "",
+  "main": "handler.js",
+  "scripts": {
+    "test": "npm t"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://Salvatore@sdlc.fao.org/bitbucket/scm/aws-tools/ec2-state-switcher.git"
+  },
+  "author": "Daniele Salvatore (daniele.salvatore(at)",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.188.0",
+    "bluebird": "^3.5.1",
+    "moment": "^2.20.1",
+    "serverless-offline": "^3.16.0",
+    "serverless-webpack": "^4.2.0",
+    "webpack": "^3.10.0"
+  }
+}

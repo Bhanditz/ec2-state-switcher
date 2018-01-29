@@ -1,0 +1,49 @@
+service: ec2-state-switcher
+
+# Set AWS as provider and define runtime
+provider:
+  name: aws
+  runtime: nodejs6.10
+
+# Set stage and AWS region (eu-west-1 Ireland)
+  stage: dev
+  region: eu-west-1
+
+# Add statements to the Lambda function's IAM Role here
+# Lambda can logs and Describe,Stop,Start each EC2 instance
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "logs:*"
+      Resource: "arn:aws:logs:*:*:*"
+    - Effect: "Allow"
+      Action:
+        - "ec2:DescribeInstances"
+        - "ec2:StartInstances"
+        - "ec2:StopInstances"
+      Resource: "*"
+
+# Service wide environment variables
+  environment:
+    POWER_RANGE: "POWER_RANGE"
+
+functions:
+  main:
+    handler: handler.main
+    events:
+      - schedule:
+          rate: rate(5 minutes)
+          enabled: true
+      - http:
+          path: '/'
+          method: 'GET'
+          cors: true
+
+plugins:
+  - serverless-webpack
+  - serverless-offline #serverless-offline needs to be last in the list
+
+custom:
+  webpack: ./webpack.config.js
+  serverless-offline:
+      host: 0.0.0.0
