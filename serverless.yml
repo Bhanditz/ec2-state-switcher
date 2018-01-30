@@ -25,7 +25,7 @@ provider:
 
 # Service wide environment variables
   environment:
-    POWER_RANGE: "POWER_RANGE"
+    # POWER_RANGE: "POWER_RANGE"
 
 functions:
   main:

@@ -30,14 +30,15 @@ module.exports.main = (event, context, callback) => {
             if (r.hasOwnProperty("Instances")) {
                 let Instances = r.Instances || [];
 
-                // consider only instances that are running (code 16) ore stopped (code 80)
-                Instances = Instances.filter(i => i.State && (i.State.Code === 16 || i.State.Code === 80));
+                Instances = Instances.filter(i => i.State && (isInstanceRunning(i) || isInstanceStopped(i)));
 
                 //Loop each instance
                 Instances.forEach(i => {
                     const shouldRunNow = shouldInstanceRunNow(i);
 
-                    console.log("Instance id: ", i.InstanceId, " should run? ", shouldRunNow);
+                    if (shouldRunNow !== isInstanceRunning(i)) {
+                        console.log("Instance id: ", i.InstanceId, shouldRunNow ? " will be started" : " will be stopped");
+                    }
 
                     promises.push(alignInstanceState(i, shouldRunNow));
 
@@ -55,14 +56,14 @@ module.exports.main = (event, context, callback) => {
                 const response = {
                     statusCode: 200,
                     body: JSON.stringify({
-                        message: 'Hello from FAO EC2 Switcher!',
+                        message: 'Hello from FAO EC2 Switcher! [HTTP]',
                     }),
                 };
 
                 callback(null, response);
             }
             else {
-                callback(null, {message: 'Hello from FAO EC2 Switcher!', event});
+                callback(null, {message: 'Hello from FAO EC2 Switcher! [fn()]', event});
             }
         })
     })
@@ -114,6 +115,8 @@ const alignInstanceState = (instance, shouldRun) => {
 
 const isInstanceRunning = instance => instance.State.Code === 16;
 
+const isInstanceStopped = instance => instance.State.Code === 80;
+
 const shouldInstanceRunNow = (instance) => {
 
     const Tags = instance.Tags || [];
@@ -146,10 +149,12 @@ const isNowIncludedInRange = range => {
 
 const getFromAndTo = range => {
     const r = range.split("-");
+    const from = r[0].split(":");
+    const to = r[1].split(":");
 
     return {
-        from: Moment.utc(r[0], "HH:mm"),
-        to: Moment.utc(r[1], "HH:mm")
+        from: new Moment().startOf('day').add(from[0], "hours").add(from[1], "minutes"),
+        to: new Moment().startOf('day').add(to[0], "hours").add(to[1], "minutes"),
     }
 };
 
@@ -159,7 +164,7 @@ const isValidRange = range => {
     const regExp = /^([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
     if (!regExp.test(range)) {
-        console.log("Invalid range");
+        console.log("Invalid range. Unknown format. ", range);
         return false;
     }
 
@@ -173,7 +178,7 @@ const isValidRange = range => {
         return true;
     }
 
-    console.log("Invalid range");
+    console.log("Invalid range. End time must be after Start time. ", range);
     return false;
 
 };
