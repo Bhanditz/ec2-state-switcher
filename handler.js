@@ -18,7 +18,7 @@ let promises = [];
 
 module.exports.main = (event, context, callback) => {
 
-    console.log("Managing EC2 instances: start...");
+    console.log("Managing EC2 instances: start... ", formatDate(new Moment()));
 
     // add filter as first param
     EC2.describeInstances({}, (err, data) => {
