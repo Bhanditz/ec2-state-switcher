@@ -37,13 +37,12 @@ module.exports.main = (event, context, callback) => {
                     const shouldRunNow = shouldInstanceRunNow(i);
 
                     if (shouldRunNow !== isInstanceRunning(i)) {
-                        console.log("Instance id: ", i.InstanceId, shouldRunNow ? " will be started" : " will be stopped");
+                        printInstanceStateChangeLogs(i, shouldRunNow)
                     }
 
                     promises.push(alignInstanceState(i, shouldRunNow));
 
                 });
-
             }
         });
 
@@ -77,16 +76,21 @@ const alignInstanceState = (instance, shouldRun) => {
 
         return new Promise((resolve, reject) => {
 
-            console.log("Start Instance id: ", instance.InstanceId);
+            console.log("Starting: ", printInstanceName(instance));
 
             EC2.startInstances({
                 InstanceIds: [instance.InstanceId]
             }, (err, data) => {
 
                 if (err) {
+                    console.log("Error on starting: ", printInstanceName(instance));
+                    console.log(JSON.stringify(err));
+
                     reject(err);
                     return;
                 }
+
+                console.log("Started successfully: ", printInstanceName(instance));
 
                 resolve(data);
             });
@@ -96,16 +100,20 @@ const alignInstanceState = (instance, shouldRun) => {
     if (instanceIsRunning && !shouldRun) {
         return new Promise((resolve, reject) => {
 
-            console.log("Stop Instance id: ", instance.InstanceId);
+            console.log("Stopping: ", printInstanceName(instance));
 
             EC2.stopInstances({
                 InstanceIds: [instance.InstanceId]
             }, (err, data) => {
 
                 if (err) {
+                    console.log("Error on stopping: ", printInstanceName(instance));
+                    console.log(JSON.stringify(err));
                     reject(err);
                     return;
                 }
+
+                console.log("Stopped successfully: ", printInstanceName(instance));
 
                 resolve(data);
             });
@@ -119,10 +127,7 @@ const isInstanceStopped = instance => instance.State.Code === 80;
 
 const shouldInstanceRunNow = (instance) => {
 
-    const Tags = instance.Tags || [];
-    const rangeTag = Tags.find(t => {
-        return t.Key === POWER_RANGE;
-    });
+    const rangeTag = getTag(instance, POWER_RANGE);
 
     // If the tag is not present or it is not valid
     // leave the instance state as it is
@@ -133,6 +138,13 @@ const shouldInstanceRunNow = (instance) => {
 
     return isNowIncludedInRange(rangeTag.Value);
 
+};
+
+const getTag = (instance, key) => {
+    const Tags = instance.Tags || [];
+    return Tags.find(t => {
+        return t.Key === key;
+    });
 };
 
 const isNowIncludedInRange = range => {
@@ -160,6 +172,7 @@ const getFromAndTo = range => {
 
 const isValidRange = range => {
 
+
     // Valid range time 00:00-00:00
     const regExp = /^([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
@@ -180,5 +193,37 @@ const isValidRange = range => {
 
     console.log("Invalid range. End time must be after Start time. ", range);
     return false;
+
+};
+
+const printInstanceName = instance => {
+    const name = getTag(instance, "Name") || {};
+    return name.Value + " [" + instance.InstanceId + "]";
+};
+
+const formatDate = momentDateObj => momentDateObj.format("hh:mm");
+
+const printInstanceStateChangeLogs = (instance, shouldRunNow) => {
+
+    const range = getTag(instance, POWER_RANGE).Value;
+    const now = new Moment();
+
+    console.log("");
+    console.log("=== Instance state change required:", printInstanceName(instance), "====");
+
+    console.log("Configuration");
+    console.log("\tRange\t", range);
+    console.log("\tNow\t", formatDate(now));
+
+    console.log("Desired state:");
+    console.log("\tinstance", shouldRunNow ? "should run." : "should be stopped.");
+
+    console.log("State found:");
+    if (isInstanceRunning(instance)) {
+        console.log("\trunning.");
+    }
+    if (isInstanceStopped(instance)) {
+        console.log("\tstopped");
+    }
 
 };
